@@ -1,0 +1,30 @@
+BOT_NAME = "tfscrap"
+SPIDER_MODULES = ["tfscrap.spiders"]
+NEWSPIDER_MODULE = "tfscrap.spiders"
+
+ROBOTSTXT_OBEY = True
+USER_AGENT = (
+    "Mozilla/5.0 (tfscrap/0.1 academic-project SME0829 ICMC-USP; +mailto:contact@example.com)"
+)
+
+CONCURRENT_REQUESTS_PER_DOMAIN = 2
+DOWNLOAD_DELAY = 2.0
+
+AUTOTHROTTLE_ENABLED = True
+AUTOTHROTTLE_START_DELAY = 2.0
+AUTOTHROTTLE_MAX_DELAY = 30.0
+AUTOTHROTTLE_TARGET_CONCURRENCY = 1.5
+
+HTTPCACHE_ENABLED = True
+HTTPCACHE_DIR = ".scrapy/httpcache"
+HTTPCACHE_EXPIRATION_SECS = 86400
+
+RETRY_ENABLED = True
+RETRY_TIMES = 3
+RETRY_HTTP_CODES = [429, 500, 502, 503, 504, 522, 524, 408]
+
+# We emit JSONL to stdout via the CLI; default feed is off.
+LOG_LEVEL = "INFO"
+
+REQUEST_FINGERPRINTER_IMPLEMENTATION = "2.7"
+TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
