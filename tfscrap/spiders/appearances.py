@@ -28,21 +28,41 @@ class AppearancesSpider(BaseSpider):
 
     name = "appearances"
 
+    def _leistungsdaten_url(self, href: str, season: str | None = None) -> str:
+        url = re.sub(r"/profil/spieler/", "/leistungsdaten/spieler/", self.base_url + href)
+        if season:
+            sep = "&" if "?" in url else "?"
+            url = f"{url}{sep}saison={season}"
+        return url
+
     def start_requests(self) -> Iterator[scrapy.Request]:
         for parent in self.read_parents():
             href = parent.get("href") or ""
-            url = re.sub(r"/profil/spieler/", "/leistungsdaten/spieler/", self.base_url + href)
             yield scrapy.Request(
-                url=url,
+                url=self._leistungsdaten_url(href),
                 headers=DEFAULT_HEADERS,
-                meta={"parent": parent},
+                meta={"parent": parent, "fanout": True},
                 callback=self.parse,
             )
 
     def parse(self, response, **kwargs):
         parent = response.meta.get("parent") or {}
         player_href = normalize_href(parent.get("href")) or normalize_href(response.url)
-        season = response.css("select[name=saison] option[selected]::attr(value)").get()
+        current_season = response.css("select[name=saison] option[selected]::attr(value)").get()
+        season = response.meta.get("season") or current_season
+
+        if response.meta.get("fanout"):
+            seasons = response.css("select[name=saison] option::attr(value)").getall()
+            seasons = [s for s in seasons if s and s != current_season]
+            href = parent.get("href") or ""
+            for s in seasons:
+                yield scrapy.Request(
+                    url=self._leistungsdaten_url(href, s),
+                    headers=DEFAULT_HEADERS,
+                    meta={"parent": parent, "season": s},
+                    callback=self.parse,
+                    dont_filter=True,
+                )
 
         tables = response.css("table.items")
         if not tables:
