@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Iterator
 
-from tfscrap.spiders.base import BaseSpider
+import scrapy
+
+from tfscrap.spiders.base import DEFAULT_HEADERS, BaseSpider
 from tfscrap.utils import normalize_href, parse_tm_date
 
 _DAYS_RE = re.compile(r"(\d+)")
@@ -19,6 +22,17 @@ class InjuriesSpider(BaseSpider):
     """One item per injury record on /verletzungen/spieler/<id>."""
 
     name = "injuries"
+
+    def start_requests(self) -> Iterator[scrapy.Request]:
+        for parent in self.read_parents():
+            href = parent.get("href") or ""
+            url = re.sub(r"/profil/spieler/", "/verletzungen/spieler/", self.base_url + href)
+            yield scrapy.Request(
+                url=url,
+                headers=DEFAULT_HEADERS,
+                meta={"parent": parent},
+                callback=self.parse,
+            )
 
     def parse(self, response, **kwargs):
         parent = response.meta.get("parent") or {}

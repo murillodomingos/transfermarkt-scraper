@@ -1,6 +1,7 @@
 -- Entrega 04 — star schema carregado a partir dos JSONL produzidos pelos spiders.
 -- Política: drop-and-reload a cada execução do loader.
 
+DROP TABLE IF EXISTS fact_market_value;
 DROP TABLE IF EXISTS fact_transfer;
 DROP TABLE IF EXISTS fact_injury;
 DROP TABLE IF EXISTS fact_stats;
@@ -84,4 +85,11 @@ CREATE TABLE fact_transfer (
     market_value    BIGINT,
     transfer_fee    BIGINT,
     PRIMARY KEY (player_id, from_club_id, to_club_id, date_id)
+);
+
+CREATE TABLE fact_market_value (
+    player_id    INTEGER NOT NULL REFERENCES dim_player(player_id),
+    date_id      INTEGER NOT NULL REFERENCES dim_date(date_id),
+    market_value BIGINT,
+    PRIMARY KEY (player_id, date_id)
 );

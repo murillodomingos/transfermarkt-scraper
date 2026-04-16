@@ -10,6 +10,7 @@ from tfscrap.spiders.appearances import AppearancesSpider
 from tfscrap.spiders.clubs import ClubsSpider
 from tfscrap.spiders.competitions import CompetitionsSpider
 from tfscrap.spiders.injuries import InjuriesSpider
+from tfscrap.spiders.market_values import MarketValuesSpider
 from tfscrap.spiders.players import PlayersSpider
 from tfscrap.spiders.transfers import TransfersSpider
 
@@ -20,6 +21,7 @@ SPIDERS = {
     "appearances": AppearancesSpider,
     "injuries": InjuriesSpider,
     "transfers": TransfersSpider,
+    "market_values": MarketValuesSpider,
 }
 
 

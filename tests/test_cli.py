@@ -1,7 +1,7 @@
 from tfscrap.__main__ import SPIDERS
 
 
-def test_cli_registers_all_six_spiders():
+def test_cli_registers_all_seven_spiders():
     assert set(SPIDERS.keys()) == {
         "competitions",
         "clubs",
@@ -9,6 +9,7 @@ def test_cli_registers_all_six_spiders():
         "appearances",
         "injuries",
         "transfers",
+        "market_values",
     }
 
 

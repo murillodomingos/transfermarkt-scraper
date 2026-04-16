@@ -22,6 +22,7 @@ RAW_SOURCES = [
     "appearances",
     "injuries",
     "transfers",
+    "market_values",
 ]
 
 
@@ -129,6 +130,12 @@ def _load_dim_date(con: duckdb.DuckDBPyConnection, present: set[str]) -> None:
         parts.append("""
             SELECT TRY_CAST(date AS DATE) AS date, CAST(season AS VARCHAR) AS season
             FROM raw_transfers
+            WHERE date IS NOT NULL
+        """)
+    if "market_values" in present:
+        parts.append("""
+            SELECT TRY_CAST(date AS DATE) AS date, NULL AS season
+            FROM raw_market_values
             WHERE date IS NOT NULL
         """)
     if not parts:
@@ -257,6 +264,23 @@ def _load_fact_injury(con: duckdb.DuckDBPyConnection, present: set[str]) -> None
     """)
 
 
+def _load_fact_market_value(con: duckdb.DuckDBPyConnection, present: set[str]) -> None:
+    if "market_values" not in present:
+        return
+    con.execute("""
+        INSERT INTO fact_market_value (player_id, date_id, market_value)
+        SELECT
+            p.player_id,
+            CAST(strftime(TRY_CAST(mv.date AS DATE), '%Y%m%d') AS INTEGER) AS date_id,
+            max(mv.market_value) AS market_value
+        FROM raw_market_values mv
+        JOIN dim_player p ON p.href = mv.player_href
+        WHERE mv.date IS NOT NULL
+        GROUP BY p.player_id,
+                 CAST(strftime(TRY_CAST(mv.date AS DATE), '%Y%m%d') AS INTEGER)
+    """)
+
+
 def _load_fact_transfer(con: duckdb.DuckDBPyConnection, present: set[str]) -> None:
     if "transfers" not in present:
         return
@@ -304,11 +328,12 @@ def load(data_dir: Path, db_path: Path) -> dict[str, int]:
         _load_fact_stats(con, present)
         _load_fact_injury(con, present)
         _load_fact_transfer(con, present)
+        _load_fact_market_value(con, present)
 
         counts = {}
         for table in [
             "dim_competition", "dim_club", "dim_player", "dim_date",
-            "fact_stats", "fact_injury", "fact_transfer",
+            "fact_stats", "fact_injury", "fact_transfer", "fact_market_value",
         ]:
             counts[table] = con.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
         return counts

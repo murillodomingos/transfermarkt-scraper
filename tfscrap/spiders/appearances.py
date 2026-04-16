@@ -1,7 +1,14 @@
 from __future__ import annotations
 
-from tfscrap.spiders.base import BaseSpider
+import re
+from collections.abc import Iterator
+
+import scrapy
+
+from tfscrap.spiders.base import DEFAULT_HEADERS, BaseSpider
 from tfscrap.utils import normalize_href
+
+_PROFIL_RE = re.compile(r"/profil/spieler/(\d+)")
 
 
 def _int(raw: str | None) -> int | None:
@@ -20,6 +27,17 @@ class AppearancesSpider(BaseSpider):
     """One item per (player, competition, season) with aggregate stats."""
 
     name = "appearances"
+
+    def start_requests(self) -> Iterator[scrapy.Request]:
+        for parent in self.read_parents():
+            href = parent.get("href") or ""
+            url = re.sub(r"/profil/spieler/", "/leistungsdaten/spieler/", self.base_url + href)
+            yield scrapy.Request(
+                url=url,
+                headers=DEFAULT_HEADERS,
+                meta={"parent": parent},
+                callback=self.parse,
+            )
 
     def parse(self, response, **kwargs):
         parent = response.meta.get("parent") or {}
