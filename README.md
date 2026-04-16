@@ -14,26 +14,37 @@ pip install -r requirements.txt
 
 ## Uso
 
-Spiders são pipeáveis: a saída (JSONL) de um spider é a entrada do próximo.
+### Pipeline completo (recomendado)
 
 ```bash
-# 1) enriquece a semente com nome/país/temporada
+# todas as ligas do seed
+python -m tfscrap.pipeline
+
+# uma liga inteira (códigos disponíveis: GB1, ES1, IT1, L1, FR1, BRA1)
+python -m tfscrap.pipeline --league ES1
+
+# um clube específico dentro de uma liga
+python -m tfscrap.pipeline --league ES1 --club /real-madrid/startseite/verein/418
+
+# só scraping (sem carregar no DuckDB)
+python -m tfscrap.pipeline --league BRA1 --skip-load
+
+# só carga no DuckDB (reusa JSONL existentes em data/)
+python -m tfscrap.pipeline --skip-scrape
+```
+
+### Execução manual / debug
+
+Cada spider pode ser rodado individualmente. A saída (JSONL) de um é a entrada do próximo.
+
+```bash
 python -m tfscrap competitions -p seeds/competitions.json > data/competitions.jsonl
-
-# 2) lista clubes em cada competição
-python -m tfscrap clubs -p data/competitions.jsonl > data/clubs.jsonl
-
-# 3) dados detalhados de jogadores (visita a página de perfil de cada um)
-python -m tfscrap players -p data/clubs.jsonl > data/players.jsonl
-
-# 4) agregados por competição-temporada (desempenho)
-python -m tfscrap appearances -p data/players.jsonl > data/appearances.jsonl
-
-# 5) histórico de lesões
-python -m tfscrap injuries -p data/players.jsonl > data/injuries.jsonl
-
-# 6) histórico de transferências (via ceapi/transferHistory)
-python -m tfscrap transfers -p data/players.jsonl > data/transfers.jsonl
+python -m tfscrap clubs        -p data/competitions.jsonl > data/clubs.jsonl
+python -m tfscrap players      -p data/clubs.jsonl        > data/players.jsonl
+python -m tfscrap appearances  -p data/players.jsonl      > data/appearances.jsonl
+python -m tfscrap injuries     -p data/players.jsonl      > data/injuries.jsonl
+python -m tfscrap transfers    -p data/players.jsonl      > data/transfers.jsonl
+python -m tfscrap market_values -p data/players.jsonl     > data/market_values.jsonl
 ```
 
 Todos aceitam `-p <arquivo>` ou leem stdin.
@@ -95,12 +106,20 @@ python -c "import duckdb; print(duckdb.connect('db/tfscrap.duckdb').execute('SEL
 Para o sub-tree completo (scraping + carga):
 
 ```bash
+python -m tfscrap.pipeline                # todas as ligas
+python -m tfscrap.pipeline --league BRA1  # ou só uma
+```
+
+Ou passo a passo (debug):
+
+```bash
 python -m tfscrap competitions -p seeds/competitions.json > data/competitions.jsonl
 python -m tfscrap clubs         -p data/competitions.jsonl > data/clubs.jsonl
 python -m tfscrap players       -p data/clubs.jsonl        > data/players.jsonl
 python -m tfscrap appearances   -p data/players.jsonl      > data/appearances.jsonl
 python -m tfscrap injuries      -p data/players.jsonl      > data/injuries.jsonl
 python -m tfscrap transfers     -p data/players.jsonl      > data/transfers.jsonl
+python -m tfscrap market_values -p data/players.jsonl      > data/market_values.jsonl
 python -m tfscrap.load          --data-dir data --db db/tfscrap.duckdb
 ```
 
