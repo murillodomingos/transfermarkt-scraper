@@ -86,24 +86,20 @@ def _load_dim_player(con: duckdb.DuckDBPyConnection, present: set[str]) -> None:
         return
     con.execute("""
         INSERT INTO dim_player (
-            player_id, href, name, date_birth, nationality, position, foot,
-            height_cm, joined_date, contract_until, current_market_value
+            player_id, href, name, date_birth, nationality, position, foot, height_cm
         )
         SELECT
             row_number() OVER (ORDER BY href) AS player_id,
             href,
             name,
-            TRY_CAST(dob AS DATE)            AS date_birth,
+            TRY_CAST(dob AS DATE) AS date_birth,
             nationality,
             position,
             foot,
-            height_cm,
-            TRY_CAST(joined AS DATE)         AS joined_date,
-            TRY_CAST(contract_until AS DATE) AS contract_until,
-            market_value                     AS current_market_value
+            height_cm
         FROM raw_players
         WHERE href IS NOT NULL
-        QUALIFY row_number() OVER (PARTITION BY href ORDER BY market_value DESC NULLS LAST) = 1
+        QUALIFY row_number() OVER (PARTITION BY href ORDER BY name NULLS LAST) = 1
     """)
 
 
@@ -137,6 +133,14 @@ def _load_dim_date(con: duckdb.DuckDBPyConnection, present: set[str]) -> None:
             SELECT TRY_CAST(date AS DATE) AS date, NULL AS season
             FROM raw_market_values
             WHERE date IS NOT NULL
+        """)
+    if "players" in present:
+        parts.append("""
+            SELECT TRY_CAST(joined AS DATE) AS date, NULL AS season
+            FROM raw_players WHERE joined IS NOT NULL
+            UNION
+            SELECT TRY_CAST(contract_until AS DATE) AS date, NULL AS season
+            FROM raw_players WHERE contract_until IS NOT NULL
         """)
     if not parts:
         return
@@ -307,6 +311,26 @@ def _load_fact_transfer(con: duckdb.DuckDBPyConnection, present: set[str]) -> No
     """)
 
 
+def _load_fact_contract(con: duckdb.DuckDBPyConnection, present: set[str]) -> None:
+    if "players" not in present:
+        return
+    con.execute("""
+        INSERT INTO fact_contract (player_id, club_id, joined_date_id, contract_until_id)
+        SELECT
+            p.player_id,
+            cl.club_id,
+            CAST(strftime(TRY_CAST(rp.joined         AS DATE), '%Y%m%d') AS INTEGER),
+            CAST(strftime(TRY_CAST(rp.contract_until AS DATE), '%Y%m%d') AS INTEGER)
+        FROM raw_players rp
+        JOIN dim_player p  ON p.href  = rp.href
+        JOIN dim_club   cl ON cl.href = rp.club_href
+        WHERE rp.joined IS NOT NULL AND rp.contract_until IS NOT NULL
+        QUALIFY row_number() OVER (
+            PARTITION BY p.player_id, cl.club_id ORDER BY rp.joined DESC
+        ) = 1
+    """)
+
+
 def load(data_dir: Path, db_path: Path) -> dict[str, int]:
     db_path.parent.mkdir(parents=True, exist_ok=True)
     if db_path.exists():
@@ -329,11 +353,12 @@ def load(data_dir: Path, db_path: Path) -> dict[str, int]:
         _load_fact_injury(con, present)
         _load_fact_transfer(con, present)
         _load_fact_market_value(con, present)
+        _load_fact_contract(con, present)
 
         counts = {}
         for table in [
             "dim_competition", "dim_club", "dim_player", "dim_date",
-            "fact_stats", "fact_injury", "fact_transfer", "fact_market_value",
+            "fact_stats", "fact_injury", "fact_transfer", "fact_market_value", "fact_contract",
         ]:
             counts[table] = con.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
         return counts

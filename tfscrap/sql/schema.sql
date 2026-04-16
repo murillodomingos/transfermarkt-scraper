@@ -1,6 +1,7 @@
 -- Entrega 04 — star schema carregado a partir dos JSONL produzidos pelos spiders.
 -- Política: drop-and-reload a cada execução do loader.
 
+DROP TABLE IF EXISTS fact_contract;
 DROP TABLE IF EXISTS fact_market_value;
 DROP TABLE IF EXISTS fact_transfer;
 DROP TABLE IF EXISTS fact_injury;
@@ -29,17 +30,14 @@ CREATE TABLE dim_club (
 );
 
 CREATE TABLE dim_player (
-    player_id             INTEGER PRIMARY KEY,
-    href                  VARCHAR UNIQUE NOT NULL,
-    name                  VARCHAR,
-    date_birth            DATE,
-    nationality           VARCHAR,
-    position              VARCHAR,
-    foot                  VARCHAR,
-    height_cm             INTEGER,
-    joined_date           DATE,
-    contract_until        DATE,
-    current_market_value  BIGINT
+    player_id   INTEGER PRIMARY KEY,
+    href        VARCHAR UNIQUE NOT NULL,
+    name        VARCHAR,
+    date_birth  DATE,
+    nationality VARCHAR,
+    position    VARCHAR,
+    foot        VARCHAR,
+    height_cm   INTEGER
 );
 
 CREATE TABLE dim_date (
@@ -92,4 +90,12 @@ CREATE TABLE fact_market_value (
     date_id      INTEGER NOT NULL REFERENCES dim_date(date_id),
     market_value BIGINT,
     PRIMARY KEY (player_id, date_id)
+);
+
+CREATE TABLE fact_contract (
+    player_id         INTEGER NOT NULL REFERENCES dim_player(player_id),
+    club_id           INTEGER NOT NULL REFERENCES dim_club(club_id),
+    joined_date_id    INTEGER NOT NULL REFERENCES dim_date(date_id),
+    contract_until_id INTEGER NOT NULL REFERENCES dim_date(date_id),
+    PRIMARY KEY (player_id, club_id, joined_date_id)
 );
